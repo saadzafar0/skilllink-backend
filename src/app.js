@@ -1,22 +1,21 @@
 require("dotenv").config();
-console.log("DB_SERVER:", process.env.DB_SERVER); 
 
-const { connectDB } = require("./config/db");
 const express = require("express");
-const cors = require("cors");  // ✅ Import cors
+const cors = require("cors");
 const rootRouter = require("./routes/index");
+const { poolPromise } = require("./config/db");
 
-const PORT = 4000;
-
+const PORT = process.env.PORT || 4000;
 const app = express();
 
-app.use(cors()); 
+app.use(cors());
 app.use(express.json());
 
-connectDB();
-
-app.use("/api/v1/", rootRouter);
-
-app.listen(PORT, () => {
-    console.log(`Server is running on PORT ${PORT}`); 
-});
+poolPromise 
+    .then(() => {
+        app.use("/api/v1/", rootRouter);
+        app.listen(PORT, () => console.log(`Server running on PORT ${PORT}`));
+    })
+    .catch(err => {
+        console.error("Unable to start server due to DB connection failure:", err);
+    });
