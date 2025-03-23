@@ -4,14 +4,19 @@ const router = express.Router();
 
 // Create User
 router.post("/", async (req, res) => {
-    const { name, email, password } = req.body;
+    const { name, accType, email, country, password } = req.body;
     try {
         const pool = await poolPromise;
         await pool.request()
             .input("name", sql.NVarChar, name)
+            .input("accType", sql.NVarChar, accType)
             .input("email", sql.NVarChar, email)
+            .input("country", sql.NVarChar, country)
             .input("password", sql.NVarChar, password)
-            .query("INSERT INTO users (name, email, password) VALUES (@name, @email, @password)");
+            .query(`
+                INSERT INTO Users (Name, accType, email, Country, password, createdAt) 
+                VALUES (@name, @accType, @email, @country, @password, GETDATE())
+            `);
 
         res.status(201).json({ message: "User created successfully" });
     } catch (error) {
@@ -19,25 +24,25 @@ router.post("/", async (req, res) => {
     }
 });
 
-// Get All Users (GET)
+// Get All Users
 router.get("/", async (req, res) => {
     try {
         const pool = await poolPromise;
-        let result = await pool.request().query("SELECT * FROM users");
+        let result = await pool.request().query("SELECT * FROM Users");
         res.status(200).json(result.recordset);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// Get Single User (GET)
-router.get("/:id", async (req, res) => {
-    const { id } = req.params;
+// Get Single User
+router.get("/:userID", async (req, res) => {
+    const { userID } = req.params;
     try {
         const pool = await poolPromise;
         let result = await pool.request()
-            .input("id", sql.Int, id)
-            .query("SELECT * FROM users WHERE id = @id");
+            .input("userID", sql.Int, userID)
+            .query("SELECT * FROM Users WHERE userID = @userID");
 
         if (result.recordset.length === 0) {
             return res.status(404).json({ message: "User not found" });
@@ -49,17 +54,24 @@ router.get("/:id", async (req, res) => {
 });
 
 // Update User
-router.put("/:id", async (req, res) => {
-    const { id } = req.params;
-    const { name, email, password } = req.body;
+router.put("/:userID", async (req, res) => {
+    const { userID } = req.params;
+    const { name, accType, email, country, password } = req.body;
     try {
         const pool = await poolPromise;
-        let result = await pool.request()
-            .input("id", sql.Int, id)
+        await pool.request()
+            .input("userID", sql.Int, userID)
             .input("name", sql.NVarChar, name)
+            .input("accType", sql.NVarChar, accType)
             .input("email", sql.NVarChar, email)
+            .input("country", sql.NVarChar, country)
             .input("password", sql.NVarChar, password)
-            .query("UPDATE users SET name = @name, email = @email, password = @password WHERE id = @id");
+            .query(`
+                UPDATE Users 
+                SET Name = @name, accType = @accType, email = @email, 
+                    Country = @country, password = @password 
+                WHERE userID = @userID
+            `);
 
         res.status(200).json({ message: "User updated successfully" });
     } catch (error) {
@@ -67,14 +79,14 @@ router.put("/:id", async (req, res) => {
     }
 });
 
-// Delete User (DELETE)
-router.delete("/:id", async (req, res) => {
-    const { id } = req.params;
+// Delete User
+router.delete("/:userID", async (req, res) => {
+    const { userID } = req.params;
     try {
         const pool = await poolPromise;
         await pool.request()
-            .input("id", sql.Int, id)
-            .query("DELETE FROM users WHERE id = @id");
+            .input("userID", sql.Int, userID)
+            .query("DELETE FROM Users WHERE userID = @userID");
 
         res.status(200).json({ message: "User deleted successfully" });
     } catch (error) {
