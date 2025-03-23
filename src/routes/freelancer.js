@@ -4,19 +4,18 @@ const router = express.Router();
 
 // Create Freelancer
 router.post("/", async (req, res) => {
-    const { userID, title, bio, hourlyRate, country, experienceLevel } = req.body;
+    const { freelancerID, niche, hourlyRate, qualification, about } = req.body;
     try {
         const pool = await poolPromise;
         await pool.request()
-            .input("userID", sql.Int, userID)
-            .input("title", sql.NVarChar, title)
-            .input("bio", sql.NVarChar, bio)
-            .input("hourlyRate", sql.Decimal, hourlyRate)
-            .input("country", sql.NVarChar, country)
-            .input("experienceLevel", sql.NVarChar, experienceLevel)
+            .input("freelancerID", sql.Int, freelancerID)
+            .input("niche", sql.NVarChar, niche)
+            .input("hourlyRate", sql.Float, hourlyRate)
+            .input("qualification", sql.NVarChar, qualification)
+            .input("about", sql.NVarChar, about)
             .query(`
-                INSERT INTO Freelancers (userID, title, bio, hourlyRate, country, experienceLevel, createdAt) 
-                VALUES (@userID, @title, @bio, @hourlyRate, @country, @experienceLevel, GETDATE())
+                INSERT INTO Freelancers (freelancerID, niche, hourlyRate, qualification, about) 
+                VALUES (@freelancerID, @niche, @hourlyRate, @qualification, @about)
             `);
 
         res.status(201).json({ message: "Freelancer profile created successfully" });
@@ -57,20 +56,19 @@ router.get("/:freelancerID", async (req, res) => {
 // Update Freelancer
 router.put("/:freelancerID", async (req, res) => {
     const { freelancerID } = req.params;
-    const { title, bio, hourlyRate, country, experienceLevel } = req.body;
+    const { niche, hourlyRate, qualification, about } = req.body;
     try {
         const pool = await poolPromise;
         await pool.request()
             .input("freelancerID", sql.Int, freelancerID)
-            .input("title", sql.NVarChar, title)
-            .input("bio", sql.NVarChar, bio)
-            .input("hourlyRate", sql.Decimal, hourlyRate)
-            .input("country", sql.NVarChar, country)
-            .input("experienceLevel", sql.NVarChar, experienceLevel)
+            .input("niche", sql.NVarChar, niche)
+            .input("hourlyRate", sql.Float, hourlyRate)
+            .input("qualification", sql.NVarChar, qualification)
+            .input("about", sql.NVarChar, about)
             .query(`
                 UPDATE Freelancers 
-                SET title = @title, bio = @bio, hourlyRate = @hourlyRate, 
-                    country = @country, experienceLevel = @experienceLevel
+                SET niche = @niche, hourlyRate = @hourlyRate, 
+                    qualification = @qualification, about = @about
                 WHERE freelancerID = @freelancerID
             `);
 
