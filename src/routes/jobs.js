@@ -1,106 +1,112 @@
 const express = require("express");
+const { postJob } = require("../controllers/postJobController");
+const isClient = require("../middleware/isClient");
 const { sql, poolPromise } = require("../config/db");
+
 const router = express.Router();
 
-// Create a new job
-router.post("/", async (req, res) => {
-    const { cID, Title, description, targetSkills, connectsRequired, estTime, jobLevel } = req.body;
+// POST /api/v1/jobs — Post a new job (Only by Clients)
+router.post("/", isClient, postJob); 
 
-    try {
-        const pool = await poolPromise;
-        const result = await pool.request()
-            .input("cID", sql.Int, cID)
-            .input("Title", sql.NVarChar, Title)
-            .input("description", sql.NVarChar, description)
-            .input("targetSkills", sql.NVarChar, targetSkills)
-            .input("connectsRequired", sql.Int, connectsRequired)
-            .input("estTime", sql.NVarChar, estTime)
-            .input("jobLevel", sql.NVarChar, jobLevel)
-            .query(`
-                INSERT INTO Jobs (cID, Title, description, targetSkills, connectsRequired, estTime, jobLevel) 
-                OUTPUT INSERTED.jobID VALUES (@cID, @Title, @description, @targetSkills, @connectsRequired, @estTime, @jobLevel)
-            `);
+//
 
-        res.status(201).json({ jobID: result.recordset[0].jobID, message: "Job created successfully" });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Get all jobs
+// GET /api/v1/jobs — Get all jobs with filters
 router.get("/", async (req, res) => {
-    try {
-        const pool = await poolPromise;
-        const result = await pool.request().query("SELECT * FROM Jobs ORDER BY postedOn DESC");
+  const { keyword, level, connects, sortBy } = req.query;
 
-        res.status(200).json(result.recordset);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+  try {
+    const pool = await poolPromise;
+    const request = pool.request();
+
+    let query = "SELECT * FROM Jobs WHERE 1=1";
+
+    if (keyword) {
+      query += " AND (Title LIKE @keyword OR targetSkills LIKE @keyword)";
+      request.input("keyword", sql.NVarChar, `%${keyword}%`);
     }
+
+    if (level && level !== "Any") {
+      query += " AND jobLevel = @level";
+      request.input("level", sql.NVarChar, level);
+    }
+
+    if (connects && connects !== "100") {
+      query += " AND connectsRequired <= @connects";
+      request.input("connects", sql.Int, parseInt(connects));
+    }
+
+    switch (sortBy) {
+      case "newest":
+        query += " ORDER BY postedOn DESC";
+        break;
+      case "oldest":
+        query += " ORDER BY postedOn ASC";
+        break;
+      case "connectsLow":
+        query += " ORDER BY connectsRequired ASC";
+        break;
+      case "connectsHigh":
+        query += " ORDER BY connectsRequired DESC";
+        break;
+      default:
+        query += " ORDER BY postedOn DESC";
+    }
+
+    const result = await request.query(query);
+    res.status(200).json(result.recordset);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// Get a specific job by ID
+// JobDetails
 router.get("/:jobID", async (req, res) => {
-    const { jobID } = req.params;
+  const { jobID } = req.params;
 
-    try {
-        const pool = await poolPromise;
-        const result = await pool.request()
-            .input("jobID", sql.Int, jobID)
-            .query("SELECT * FROM Jobs WHERE jobID = @jobID");
+  try {
+    const pool = await poolPromise;
+    const request = pool.request();
 
-        if (result.recordset.length === 0) {
-            return res.status(404).json({ error: "Job not found" });
-        }
+    request.input("jobID", sql.Int, parseInt(jobID));
 
-        res.status(200).json(result.recordset[0]);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+    const query = `
+      SELECT 
+        j.jobID, j.Title, j.description, j.targetSkills, j.connectsRequired,
+        j.estTime, j.postedOn, j.jobLevel,
+        c.companyName, c.qualification, c.rating
+      FROM Jobs j
+      JOIN Clients c ON j.cID = c.cID
+      WHERE j.jobID = @jobID
+    `;
+
+    const result = await request.query(query);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ message: "Job not found" });
     }
+
+    res.status(200).json(result.recordset[0]);
+  } catch (error) {
+    console.error("Error fetching job details:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// Update a job
-router.put("/:jobID", async (req, res) => {
-    const { jobID } = req.params;
-    const { Title, description, targetSkills, connectsRequired, estTime, jobLevel } = req.body;
-
-    try {
-        const pool = await poolPromise;
-        await pool.request()
-            .input("jobID", sql.Int, jobID)
-            .input("Title", sql.NVarChar, Title)
-            .input("description", sql.NVarChar, description)
-            .input("targetSkills", sql.NVarChar, targetSkills)
-            .input("connectsRequired", sql.Int, connectsRequired)
-            .input("estTime", sql.NVarChar, estTime)
-            .input("jobLevel", sql.NVarChar, jobLevel)
-            .query(`
-                UPDATE Jobs 
-                SET Title = @Title, description = @description, targetSkills = @targetSkills, 
-                    connectsRequired = @connectsRequired, estTime = @estTime, jobLevel = @jobLevel 
-                WHERE jobID = @jobID
-            `);
-
-        res.status(200).json({ message: "Job updated successfully" });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+// GET /api/v1/jobs/client/:clientId — Get all jobs posted by a specific client
+router.get("/client/:clientId", async (req, res) => {
+  const { clientId } = req.params;
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("cID", sql.Int, clientId)
+      .query("SELECT * FROM Jobs WHERE cID = @cID");
+    res.status(200).json(result.recordset);
+  } catch (err) {
+    console.error("Error fetching client jobs:", err);
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
-// Delete a job
-router.delete("/:jobID", async (req, res) => {
-    const { jobID } = req.params;
-
-    try {
-        const pool = await poolPromise;
-        await pool.request()
-            .input("jobID", sql.Int, jobID)
-            .query("DELETE FROM Jobs WHERE jobID = @jobID");
-
-        res.status(200).json({ message: "Job deleted successfully" });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
 
 module.exports = router;
