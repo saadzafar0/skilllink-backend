@@ -92,21 +92,30 @@ router.get("/:jobID", async (req, res) => {
   }
 });
 
-// GET /api/v1/jobs/client/:clientId — Get all jobs posted by a specific client
+// GET /api/v1/jobs/client/:clientId — Get jobs posted by a client (optionally filter by status)
 router.get("/client/:clientId", async (req, res) => {
   const { clientId } = req.params;
+  const { status } = req.query;
+
   try {
     const pool = await poolPromise;
-    const result = await pool
-      .request()
-      .input("cID", sql.Int, clientId)
-      .query("SELECT * FROM Jobs WHERE cID = @cID");
+    const request = pool.request();
+
+    request.input("cID", sql.Int, clientId);
+
+    let query = "SELECT * FROM Jobs WHERE cID = @cID";
+
+    if (status) {
+      query += " AND status = @status";
+      request.input("status", sql.NVarChar, status);
+    }
+
+    const result = await request.query(query);
     res.status(200).json(result.recordset);
-  } catch (err) {
-    console.error("Error fetching client jobs:", err);
-    res.status(500).json({ error: "Server error" });
+  } catch (error) {
+    console.error("Error fetching client jobs:", error);
+    res.status(500).json({ error: error.message });
   }
 });
-
 
 module.exports = router;
