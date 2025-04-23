@@ -5,6 +5,87 @@ const { sql, poolPromise } = require("../config/db");
 const {registerUser} = require("../controllers/authController");
 const router = express.Router();
 
+
+// Buy Connects for Freelancer
+router.post("/buy-connects", async (req, res) => {
+  const { freelancerID, quantity, amount } = req.body;
+  
+  // Validate inputs
+  if (!freelancerID || !quantity || !amount) {
+    return res.status(400).json({ 
+      success: false, 
+      message: "Missing required fields: freelancerID, quantity, or amount" 
+    });
+  }
+  
+  try {
+    const pool = await poolPromise;
+    
+    // Start a transaction
+    const transaction = new sql.Transaction(pool);
+    
+    await transaction.begin();
+    
+    try {
+      // First check if user has enough balance
+      const balanceResult = await transaction
+        .request()
+        .input("freelancerID", sql.Int, freelancerID)
+        .query("SELECT amount FROM Freelancers WHERE freelancerID = @freelancerID");
+      
+      if (balanceResult.recordset.length === 0) {
+        await transaction.rollback();
+        return res.status(404).json({ 
+          success: false, 
+          message: "Freelancer not found" 
+        });
+      }
+      
+      const currentBalance = balanceResult.recordset[0].amount;
+      
+      if (currentBalance < amount) {
+        await transaction.rollback();
+        return res.status(400).json({ 
+          success: false, 
+          message: "Insufficient balance" 
+        });
+      }
+      
+      // Update freelancer's balance and connects
+      await transaction
+        .request()
+        .input("freelancerID", sql.Int, freelancerID)
+        .input("amount", sql.Money, amount)
+        .input("quantity", sql.Int, quantity)
+        .query(`
+          UPDATE Freelancers 
+          SET amount = amount - @amount, 
+              totalConnects = totalConnects + @quantity
+          WHERE freelancerID = @freelancerID
+        `);
+      
+      // Commit the transaction
+      await transaction.commit();
+      
+      res.status(200).json({ 
+        success: true, 
+        message: "Connects purchased successfully" 
+      });
+    } catch (error) {
+      // If there's an error, rollback changes
+      await transaction.rollback();
+      throw error;
+    }
+  } catch (error) {
+    console.error("Error buying connects:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+
 // Create Freelancer
 router.post("/", async (req, res) => {
   const { freelancerID, niche, hourlyRate, qualification, about } = req.body;

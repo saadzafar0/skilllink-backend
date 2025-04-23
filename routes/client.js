@@ -150,4 +150,45 @@ router.get("/spent/:userID", async (req, res) => {
   }
 });
 
+
+// Add Funds to Client Account
+router.post("/add-funds", async (req, res) => {
+  const { clientID, amount } = req.body;
+
+  if (!clientID || !amount || amount <= 0) {
+    return res.status(400).json({ message: "Invalid client ID or amount" });
+  }
+
+  try {
+    const pool = await poolPromise;
+    
+    // First, get the current amount
+    const currentAmountResult = await pool
+      .request()
+      .input("clientID", sql.Int, clientID)
+      .query("SELECT amount FROM Clients WHERE cID = @clientID");
+
+    if (currentAmountResult.recordset.length === 0) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    const currentAmount = currentAmountResult.recordset[0].amount || 0;
+    const newAmount = parseFloat(currentAmount) + parseFloat(amount);
+    
+    // Update the client's amount
+    await pool
+      .request()
+      .input("clientID", sql.Int, clientID)
+      .input("newAmount", sql.Money, newAmount)
+      .query("UPDATE Clients SET amount = @newAmount WHERE cID = @clientID");
+
+    res.status(200).json({ 
+      message: "Funds added successfully",
+      newBalance: newAmount
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

@@ -5,6 +5,58 @@ const { sql, poolPromise } = require("../config/db");
 
 const router = express.Router();
 
+router.post("/", isClient, async (req, res) => {
+  try {
+    const { 
+      title, 
+      description, 
+      targetSkills, 
+      estTime, 
+      jobLevel, 
+      connectsRequired, 
+      price 
+    } = req.body;
+    
+    // Get client ID from the request headers
+    const cID = req.headers["user-id"];
+    
+    if (!cID) {
+      return res.status(401).json({ message: "Client ID not provided" });
+    }
+    
+    const pool = await poolPromise;
+    const request = pool.request();
+    
+    // Add input parameters
+    request.input("cID", sql.Int, parseInt(cID));
+    request.input("Title", sql.VarChar(255), title);
+    request.input("description", sql.Text, description);
+    request.input("price", sql.Money, parseFloat(price));
+    request.input("targetSkills", sql.VarChar(255), targetSkills);
+    request.input("connectsRequired", sql.Int, parseInt(connectsRequired));
+    request.input("estTime", sql.VarChar(50), estTime);
+    request.input("jobLevel", sql.VarChar(50), jobLevel);
+    
+    const query = `
+      INSERT INTO Jobs (cID, Title, description, price, targetSkills, connectsRequired, estTime, jobLevel)
+      VALUES (@cID, @Title, @description, @price, @targetSkills, @connectsRequired, @estTime, @jobLevel);
+      
+      SELECT SCOPE_IDENTITY() AS jobID;
+    `;
+    
+    const result = await request.query(query);
+    const jobID = result.recordset[0].jobID;
+    
+    res.status(201).json({ 
+      message: "Job created successfully", 
+      jobID: jobID 
+    });
+  } catch (error) {
+    console.error("Error creating job:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get("/ongoingfreelancerJobs/:userID", async (req, res) => {
   const { userID } = req.params;
   
@@ -74,7 +126,6 @@ router.get("/", async (req, res) => {
     let query = "SELECT * FROM Jobs ORDER BY postedOn DESC";
     
     const result = await request.query(query);
-    console.log("Jobs fetched successfully:", result.recordset);
     
     res.status(200).json(result.recordset);
   } catch (error) {
@@ -83,39 +134,34 @@ router.get("/", async (req, res) => {
 });
 
 // JobDetails
-router.get("/:jobID", async (req, res) => {
-  const { jobID } = req.params;
+router.get("/client/:clientId", async (req, res) => {
+  const { clientId } = req.params;
 
   try {
     const pool = await poolPromise;
     const request = pool.request();
 
-    request.input("jobID", sql.Int, parseInt(jobID));
+    request.input("cID", sql.Int, clientId);
 
+    // Modified query to exclude jobs that have proposals with pStatus = 'Accepted' or 'Completed'
+    // Status filtering removed completely
     const query = `
-      SELECT 
-        j.jobID, j.Title, j.description, j.targetSkills, j.connectsRequired,
-        j.estTime, j.postedOn, j.jobLevel,
-        c.companyName, c.qualification, c.rating
-      FROM Jobs j
-      JOIN Clients c ON j.cID = c.cID
-      WHERE j.jobID = @jobID
+      SELECT * FROM Jobs 
+      WHERE cID = @cID
+      AND jobID NOT IN (
+        SELECT jobID FROM Proposals 
+        WHERE pStatus IN ('Accepted', 'Completed')
+      )
     `;
 
     const result = await request.query(query);
-
-    if (result.recordset.length === 0) {
-      return res.status(404).json({ message: "Job not found" });
-    }
-
-    res.status(200).json(result.recordset[0]);
+    res.status(200).json(result.recordset);
   } catch (error) {
-    console.error("Error fetching job details:", error);
+    console.error("Error fetching client jobs:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET /api/v1/jobs/client/:clientId — Get jobs posted by a client (optionally filter by status)
 router.get("/client/:clientId", async (req, res) => {
   const { clientId } = req.params;
   const { status } = req.query;
@@ -126,7 +172,15 @@ router.get("/client/:clientId", async (req, res) => {
 
     request.input("cID", sql.Int, clientId);
 
-    let query = "SELECT * FROM Jobs WHERE cID = @cID";
+    // Modified query to exclude jobs that have proposals with pStatus = 'Accepted'
+    let query = `
+      SELECT * FROM Jobs 
+      WHERE cID = @cID
+      AND jobID NOT IN (
+        SELECT jobID FROM Proposals 
+        WHERE pStatus = 'Accepted'
+      )
+    `;
 
     if (status) {
       query += " AND status = @status";
@@ -143,7 +197,6 @@ router.get("/client/:clientId", async (req, res) => {
 
 // POST /api/v1/jobs/complete/:jobID - Mark job as completed and handle payment transfer
 router.post("/complete/:jobID", async (req, res) => {
-  console.log("Request to complete job received");
   const { jobID } = req.params;
 
   try {
@@ -161,7 +214,6 @@ router.post("/complete/:jobID", async (req, res) => {
     
     const jobResult = await request.query(jobQuery);
     
-    console.log("Job result:", jobResult);
     const { price, cID, freelancerID, proposalID } = jobResult.recordset[0];
 
     // Check if client has sufficient balance
