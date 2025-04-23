@@ -1,5 +1,24 @@
-USE SkillLink;
+USE skilllink;
 GO
+
+SELECT 
+            T.transactionID,
+            T.Amount,
+            T.tStatus,
+            T.transactionOn,
+            J.jobID,
+            J.Title AS JobTitle,
+            C.cID AS ClientID,
+            U.Name AS ClientName,
+            C.companyName
+        FROM Transactions T
+        JOIN Jobs J ON T.jID = J.jobID
+        JOIN Clients C ON J.cID = C.cID
+        JOIN Users U ON C.cID = U.userID
+        WHERE C.cID = 5
+        ORDER BY T.transactionOn DESC;
+
+
 -- Section: Top Freelancers
 --Top 5 highest-rated freelancers
 SELECT TOP 5 freelancerID, Name, rating, totalReviews  

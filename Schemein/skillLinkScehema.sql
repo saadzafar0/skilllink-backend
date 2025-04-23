@@ -13,8 +13,12 @@ SELECT * FROM Skills;
 SELECT * FROM FreelancerSkills;
 SELECT * FROM Transactions;
 SELECT * FROM Messages;
+SELECT * from Submissions;
 
 SELECT earned FROM Freelancers;
+
+
+
 
 -- Users Table
 CREATE TABLE Users (
@@ -84,6 +88,10 @@ CREATE TABLE Proposals (
     pStatus VARCHAR(50) ,
     submittedOn smalldatetime default getdate()
 );
+---Pending
+use skilllink
+ALTER TABLE Proposals
+ADD CONSTRAINT DF_Proposals_pStatus DEFAULT 'Pending' FOR pStatus;
 
 -- Reviews Table
 --drop table Reviews;
@@ -264,6 +272,10 @@ BEGIN
 END;
 GO
 
+INSERT INTO Proposals (freelancerID, jobID, bidAmount, coverLetter) VALUES
+(1, 1, 1000, 'I am interested in this project and have the required skills.'),
+(2, 2, 1500, 'I can deliver this project within the deadline.'),
+(3, 3, 1200, 'I have experience in similar projects.')
 -------------------------------INSERTIONS-------------------------------------
 select * from Users;
 INSERT INTO Users(Name, accType, email, Country, Users.password)VALUES
@@ -318,10 +330,10 @@ INSERT INTO Clients(cID, companyName, companyAddress, qualification, about) Valu
 
 
 select * from Jobs;
-INSERT INTO Jobs (cID, Title, description, targetSkills, connectsRequired, estTime, jobLevel)VALUES
-(4, 'Business Consulting', 'Need a consultant for business strategy.', 'Business Strategy, Consulting', 10, '2 weeks', 'Advanced'),
-(5, 'Software Development', 'Looking for a developer to build a web app.', 'React, Node.js, MongoDB', 15, '1 month', 'Intermediate'),
-(6, 'Engineering Project', 'Require an engineer for a construction project.', 'Civil Engineering, Project Management', 20, '3 months', 'Expert');
+INSERT INTO Jobs (cID, Title, description, targetSkills, connectsRequired, estTime, jobLevel,price)VALUES
+(4, 'Business Consulting', 'Need a consultant for business strategy.', 'Business Strategy, Consulting', 10, '2 weeks', 'Advanced',100),
+(5, 'Software Development', 'Looking for a developer to build a web app.', 'React, Node.js, MongoDB', 15, '1 month', 'Intermediate',200),
+(6, 'Engineering Project', 'Require an engineer for a construction project.', 'Civil Engineering, Project Management', 20, '3 months', 'Expert',300);
 
 GO
 

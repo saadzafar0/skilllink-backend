@@ -145,4 +145,82 @@ router.get("/user/:userId", async (req, res) => {
 });
 
 
+router.get("/client/:clientId", async (req, res) => {
+  const { clientId } = req.params;
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("clientId", sql.Int, clientId)
+      .query(`
+        SELECT 
+            T.transactionID,
+            T.Amount,
+            T.tStatus,
+            T.transactionOn,
+            J.jobID,
+            J.Title AS JobTitle,
+            C.cID AS ClientID,
+            U.Name AS ClientName,
+            C.companyName
+        FROM Transactions T
+        JOIN Jobs J ON T.jID = J.jobID
+        JOIN Clients C ON J.cID = C.cID
+        JOIN Users U ON C.cID = U.userID
+        WHERE C.cID = @clientId
+        ORDER BY T.transactionOn DESC;
+      `);
+    res.status(200).json(result.recordset);
+  } catch (error) {
+    console.error("Error fetching transactions for client:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
+router.get("/freelancer/:freelancerID", async (req, res) => {
+  const { freelancerID } = req.params;
+  
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("freelancerID", sql.Int, freelancerID)
+      .query(`
+        SELECT 
+            T.transactionID,
+            T.jID AS JobID,
+            J.Title AS JobTitle,
+            J.description AS JobDescription,
+            J.price AS JobPrice,
+            P.proposalID,
+            P.freelancerID,
+            U.Name AS FreelancerName,
+            F.niche AS FreelancerNiche,
+            F.hourlyRate AS FreelancerRate,
+            P.bidAmount,
+            P.coverLetter,
+            P.pStatus AS ProposalStatus,
+            P.submittedOn AS ProposalDate,
+            T.Amount,
+            T.tStatus,
+            T.transactionOn
+        FROM Transactions T
+        JOIN Jobs J ON T.jID = J.jobID
+        JOIN Proposals P ON J.jobID = P.jobID
+        JOIN Freelancers F ON P.freelancerID = F.freelancerID
+        JOIN Users U ON F.freelancerID = U.userID
+        WHERE P.pStatus = 'Completed'
+        AND P.freelancerID = @freelancerID
+        ORDER BY T.transactionOn DESC, J.jobID;
+      `);
+      
+    res.status(200).json(result.recordset);
+  } catch (error) {
+    console.error("Error fetching transactions for freelancer:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
 module.exports = router;

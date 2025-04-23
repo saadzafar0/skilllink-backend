@@ -9,6 +9,8 @@ const proposalsRouter = require("./proposals");
 const clientRouter = require("./client");
 const transactionsRouter = require("./transactions");
 const dashboardRouter = require("./dashboard");
+const submissionRouter = require("./submissions");
+
 
 const router = express.Router();
 
@@ -21,5 +23,6 @@ router.use("/proposals", proposalsRouter);
 router.use("/client", clientRouter);
 router.use("/transations", transactionsRouter);
 router.use("/dashboard", dashboardRouter);
+router.use("/submissions", submissionRouter);
 
 module.exports = router;
