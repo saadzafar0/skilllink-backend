@@ -253,4 +253,68 @@ router.get("/appliedJobs/:freelancerId", async (req, res) => {
   }
 });
 
+
+// Withdraw Amount for Freelancer
+router.post("/withdraw", async (req, res) => {
+  const { freelancerID, amount, bankDetails } = req.body;
+
+  // Validate inputs
+  if (!freelancerID || !amount || !bankDetails) {
+    return res.status(400).json({
+      success: false,
+      message: "Missing required fields: freelancerID, amount, or bankDetails",
+    });
+  }
+
+  try {
+    const pool = await poolPromise;
+
+    // Check if freelancer exists and has enough balance
+    const balanceResult = await pool
+      .request()
+      .input("freelancerID", sql.Int, freelancerID)
+      .query("SELECT amount, earned FROM Freelancers WHERE freelancerID = @freelancerID");
+
+    if (balanceResult.recordset.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Freelancer not found",
+      });
+    }
+
+    const { amount: currentBalance, earned } = balanceResult.recordset[0];
+
+    if (currentBalance < amount) {
+      return res.status(400).json({
+        success: false,
+        message: "Insufficient balance",
+      });
+    }
+
+    // Update freelancer's balance and earned amount
+    await pool
+      .request()
+      .input("freelancerID", sql.Int, freelancerID)
+      .input("amount", sql.Money, amount)
+      .query(`
+        UPDATE Freelancers 
+        SET amount = amount - @amount, 
+            earned = earned - @amount
+        WHERE freelancerID = @freelancerID
+      `);
+
+    res.status(200).json({
+      success: true,
+      message: "Withdrawal successful",
+    });
+  } catch (error) {
+    console.error("Error processing withdrawal:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+
 module.exports = router;

@@ -5,6 +5,31 @@ const { sql, poolPromise } = require("../config/db");
 
 const router = express.Router();
 
+
+router.get("/", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const request = pool.request();
+    
+    let query = `
+      SELECT * FROM Jobs 
+      Where
+      jobID NOT IN (
+        SELECT jobID FROM Proposals 
+        WHERE pStatus IN ('Accepted', 'Completed')
+      )`;
+    
+    const result = await request.query(query);
+    
+    res.status(200).json(result.recordset);
+  } catch (error) {
+    res.status(500).json({ error: error.message });1
+  }
+});
+
+
+
+
 router.post("/", isClient, async (req, res) => {
   try {
     const { 
@@ -118,20 +143,6 @@ router.get("/ongoing/:userID", async (req, res) => {
   }
 });
 
-router.get("/", async (req, res) => {
-  try {
-    const pool = await poolPromise;
-    const request = pool.request();
-    
-    let query = "SELECT * FROM Jobs ORDER BY postedOn DESC";
-    
-    const result = await request.query(query);
-    
-    res.status(200).json(result.recordset);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // JobDetails
 router.get("/client/:clientId", async (req, res) => {

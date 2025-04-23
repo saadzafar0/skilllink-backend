@@ -2,10 +2,12 @@
 USE skilllink;
 Go
 
+
+
 -- Retrieve all data from all tables
 SELECT * FROM Users;
-SELECT * FROM Clients;
 SELECT * FROM Freelancers;
+SELECT * FROM Clients;
 SELECT * FROM Jobs;
 SELECT * FROM Proposals;
 SELECT * FROM Reviews;

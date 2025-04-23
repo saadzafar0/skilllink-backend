@@ -41,26 +41,37 @@ router.post("/", async (req, res) => {
 
   try {
     const pool = await poolPromise;
-    const result = await pool
+    
+    // Insert the proposal
+    await pool
       .request()
       .input("freelancerID", sql.Int, freelancerID)
       .input("jobID", sql.Int, jobID)
       .input("bidAmount", sql.Int, bidAmount)
       .input("coverLetter", sql.NVarChar, coverLetter)
-      .input("pStatus", sql.NVarChar, "pending")  // Set default status to pending
       .query(`
-        INSERT INTO Proposals (freelancerID, jobID, bidAmount, coverLetter)
-        VALUES (@freelancerID, @jobID, @bidAmount, @coverLetter)
+        INSERT INTO Proposals (freelancerID, jobID, bidAmount, coverLetter, pStatus)
+        VALUES (@freelancerID, @jobID, @bidAmount, @coverLetter, 'Pending')
+      `);
+    
+    // Minus the bid amount from freelancer's total connects
+    await pool
+      .request()
+      .input("freelancerID", sql.Int, freelancerID)
+      .input("bidAmount", sql.Int, bidAmount)
+      .query(`
+        UPDATE Freelancers
+        SET totalConnects = totalConnects - @bidAmount
+        WHERE freelancerID = @freelancerID
       `);
 
     res.status(201).json({
-      message: "Proposal submitted successfully",
+      message: "Proposal submitted successfully"
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
-
 // Get all proposals for a job
 router.get("/job/:jobID", async (req, res) => {
   const { jobID } = req.params; 
