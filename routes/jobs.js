@@ -289,4 +289,38 @@ router.post("/complete/:jobID", async (req, res) => {
   }
 });
 
+// JobDetails
+router.get("/:jobID", async (req, res) => {
+  const { jobID } = req.params;
+
+  try {
+    const pool = await poolPromise;
+    const request = pool.request();
+
+    request.input("jobID", sql.Int, parseInt(jobID));
+
+    const query = `
+      SELECT 
+        j.jobID, j.Title, j.description, j.targetSkills, j.connectsRequired,
+        j.estTime, j.postedOn, j.jobLevel,
+        c.companyName, c.qualification, c.rating
+      FROM Jobs j
+      JOIN Clients c ON j.cID = c.cID
+      WHERE j.jobID = @jobID
+    `;
+
+    const result = await request.query(query);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ message: "Job not found" });
+    }
+
+    res.status(200).json(result.recordset[0]);
+  } catch (error) {
+    console.error("Error fetching job details:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 module.exports = router;
