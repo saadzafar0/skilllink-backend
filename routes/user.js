@@ -1,4 +1,3 @@
-
 //routes/user.js
 const express = require("express");
 const {loginUser, registerUser} = require("../controllers/authController");
@@ -96,6 +95,54 @@ router.delete("/:userID", async (req, res) => {
     res.status(200).json({ message: "User deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Search users
+router.get("/search", async (req, res) => {
+  const { query } = req.query;
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("query", sql.NVarChar, `%${query}%`)
+      .query(`
+        SELECT userID as userId, name 
+        FROM Users 
+        WHERE name LIKE @query
+        ORDER BY name
+        OFFSET 0 ROWS
+        FETCH NEXT 10 ROWS ONLY
+      `);
+    res.status(200).json(result.recordset);
+  } catch (err) {
+    console.error("Error searching users:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Get users by account type (for messaging)
+router.get("/by-type/:accType", async (req, res) => {
+  const { accType } = req.params;
+  const { excludeUserId } = req.query;
+  
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("accType", sql.NVarChar, accType)
+      .input("excludeUserId", sql.Int, excludeUserId)
+      .query(`
+        SELECT userID, name, accType
+        FROM Users 
+        WHERE accType = @accType
+        AND userID != @excludeUserId
+        ORDER BY name
+      `);
+    res.status(200).json(result.recordset);
+  } catch (err) {
+    console.error("Error fetching users by type:", err);
+    res.status(500).json({ error: "Server error" });
   }
 });
 

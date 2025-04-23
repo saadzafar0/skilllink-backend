@@ -15,7 +15,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
-    "mssql": "^11.0.1"
+    "mssql": "^11.0.1",
+    "socket.io": "^4.8.1"
   },
   "description": ""
 }
