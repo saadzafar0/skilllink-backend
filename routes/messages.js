@@ -113,12 +113,21 @@ router.post("/start-conversation", async (req, res) => {
 // Get messages between two users
 router.get("/:userID1/:userID2", async (req, res) => {
   const { userID1, userID2 } = req.params;
+  
+  // Validate and convert userIDs to integers
+  const parsedUserID1 = parseInt(userID1, 10);
+  const parsedUserID2 = parseInt(userID2, 10);
+  
+  if (isNaN(parsedUserID1) || isNaN(parsedUserID2)) {
+    return res.status(400).json({ error: "Invalid user IDs provided" });
+  }
+
   try {
     const pool = await poolPromise;
     const result = await pool
       .request()
-      .input("userID1", sql.Int, userID1)
-      .input("userID2", sql.Int, userID2)
+      .input("userID1", sql.Int, parsedUserID1)
+      .input("userID2", sql.Int, parsedUserID2)
       .query(`
         SELECT m.*, u.name as senderName
         FROM Messages m
@@ -131,8 +140,8 @@ router.get("/:userID1/:userID2", async (req, res) => {
     // Mark messages as read
     await pool
       .request()
-      .input("userID1", sql.Int, userID1)
-      .input("userID2", sql.Int, userID2)
+      .input("userID1", sql.Int, parsedUserID1)
+      .input("userID2", sql.Int, parsedUserID2)
       .query(`
         UPDATE Messages
         SET isRead = 1
