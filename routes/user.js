@@ -5,26 +5,47 @@ const router = express.Router();
 const {sql, poolPromise} = require("../config/db");
 
 // Create User
+// router.post("/", async (req, res) => {
+//   const { name, accType, email, country, password } = req.body;
+//   try {
+//     const pool = await poolPromise;
+//     await pool
+//       .request()
+//       .input("name", sql.NVarChar, name)
+//       .input("accType", sql.NVarChar, accType)
+//       .input("email", sql.NVarChar, email)
+//       .input("country", sql.NVarChar, country)
+//       .input("password", sql.NVarChar, password).query(`
+//                 INSERT INTO Users (Name, accType, email, Country, password, createdAt) 
+//                 VALUES (@name, @accType, @email, @country, @password, GETDATE())
+//             `);
+
+//     res.status(201).json({ message: "User created successfully" });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+
+
 router.post("/", async (req, res) => {
   const { name, accType, email, country, password } = req.body;
   try {
     const pool = await poolPromise;
     await pool
       .request()
-      .input("name", sql.NVarChar, name)
-      .input("accType", sql.NVarChar, accType)
-      .input("email", sql.NVarChar, email)
-      .input("country", sql.NVarChar, country)
-      .input("password", sql.NVarChar, password).query(`
-                INSERT INTO Users (Name, accType, email, Country, password, createdAt) 
-                VALUES (@name, @accType, @email, @country, @password, GETDATE())
-            `);
+      .input("Name", sql.VarChar(255), name)
+      .input("accType", sql.VarChar(50), accType)
+      .input("email", sql.VarChar(255), email)
+      .input("Country", sql.VarChar(100), country)
+      .input("userPassword", sql.VarChar(255), password)
+      .execute("sp_AddUser");
 
     res.status(201).json({ message: "User created successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // Get All Users
 router.get("/", async (req, res) => {

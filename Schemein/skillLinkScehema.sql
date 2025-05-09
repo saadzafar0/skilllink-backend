@@ -19,8 +19,10 @@ SELECT * from Submissions;
 
 SELECT earned FROM Freelancers;
 
-
-
+update Jobs
+delete from Jobs where jobID = 5
+set accType = 'Client'
+where accType = 'client'
 
 -- Users Table
 CREATE TABLE Users (
