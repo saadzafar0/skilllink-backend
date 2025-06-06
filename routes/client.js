@@ -1,4 +1,3 @@
-
 //client.js
 const express = require("express");
 const { sql, poolPromise } = require("../config/db");
@@ -10,23 +9,19 @@ router.post("/", async (req, res) => {
 
   try {
     const pool = await poolPromise;
-    const result = await pool
+    await pool
       .request()
-      .input("cID", sql.Int, cID)
-      .input("companyName", sql.NVarChar, companyName)
-      .input("companyAddress", sql.NVarChar, companyAddress)
-      .input("qualification", sql.NVarChar, qualification)
-      .input("about", sql.NVarChar, about).query(`
-                INSERT INTO Clients (cID, companyName, companyAddress, qualification, about) 
-                OUTPUT INSERTED.cID VALUES (@cID, @companyName, @companyAddress, @qualification, @about)
-            `);
+      .input("userID", sql.Int, cID)
+      .input("companyName", sql.VarChar(40), companyName)
+      .input("companyAddress", sql.VarChar(255), companyAddress)
+      .input("qualification", sql.VarChar(100), qualification)
+      .input("about", sql.VarChar(255), about)
+      .execute("sp_AddClient");
 
-    res
-      .status(201)
-      .json({
-        cID: result.recordset[0].cID,
-        message: "Client added successfully",
-      });
+    res.status(201).json({
+      cID: cID,
+      message: "Client added successfully",
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -8,22 +8,16 @@ router.post("/", async (req, res) => {
 
   try {
     const pool = await poolPromise;
-    const result = await pool
+    await pool
       .request()
-      .input("jID", sql.Int, jID)
+      .input("jobID", sql.Int, jID)
       .input("Amount", sql.Decimal(10, 2), Amount)
-      .input("tStatus", sql.NVarChar, tStatus).query(`
-                INSERT INTO Transactions (jID, Amount, tStatus) 
-                OUTPUT INSERTED.transactionID 
-                VALUES (@jID, @Amount, @tStatus)
-            `);
+      .input("tStatus", sql.VarChar(50), tStatus)
+      .execute("sp_ProcessTransaction");
 
-    res
-      .status(201)
-      .json({
-        transactionID: result.recordset[0].transactionID,
-        message: "Transaction recorded successfully",
-      });
+    res.status(201).json({
+      message: "Transaction recorded successfully"
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -222,5 +216,16 @@ router.get("/freelancer/:freelancerID", async (req, res) => {
   }
 });
 
+// Get transaction history using the TransactionsHistory view
+router.get("/history", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query("SELECT * FROM TransactionsHistory");
+    res.status(200).json(result.recordset);
+  } catch (error) {
+    console.error("Error fetching transaction history:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 module.exports = router;

@@ -93,19 +93,14 @@ router.post("/", async (req, res) => {
     const pool = await poolPromise;
     await pool
       .request()
-      .input("freelancerID", sql.Int, freelancerID)
-      .input("niche", sql.NVarChar, niche)
+      .input("userID", sql.Int, freelancerID)
+      .input("niche", sql.VarChar(255), niche)
       .input("hourlyRate", sql.Float, hourlyRate)
-      .input("qualification", sql.NVarChar, qualification)
-      .input("about", sql.NVarChar, about)
-      .query(`
-                INSERT INTO Freelancers (freelancerID, niche, hourlyRate, qualification, about) 
-                VALUES (@freelancerID, @niche, @hourlyRate, @qualification, @about)
-            `);
+      .input("qualification", sql.VarChar(100), qualification)
+      .input("about", sql.VarChar(255), about)
+      .execute("sp_AddFreelancer");
 
-    res
-      .status(201)
-      .json({ message: "Freelancer profile created successfully" });
+    res.status(201).json({ message: "Freelancer profile created successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

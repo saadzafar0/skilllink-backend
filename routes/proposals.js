@@ -42,17 +42,15 @@ router.post("/", async (req, res) => {
   try {
     const pool = await poolPromise;
     
-    // Insert the proposal
+    // Submit the proposal using stored procedure
     await pool
       .request()
       .input("freelancerID", sql.Int, freelancerID)
       .input("jobID", sql.Int, jobID)
       .input("bidAmount", sql.Int, bidAmount)
-      .input("coverLetter", sql.NVarChar, coverLetter)
-      .query(`
-        INSERT INTO Proposals (freelancerID, jobID, bidAmount, coverLetter, pStatus)
-        VALUES (@freelancerID, @jobID, @bidAmount, @coverLetter, 'Pending')
-      `);
+      .input("coverLetter", sql.Text, coverLetter)
+      .input("pStatus", sql.VarChar(50), 'Pending')
+      .execute("sp_SubmitProposal");
     
     // Minus the bid amount from freelancer's total connects
     await pool
@@ -72,6 +70,7 @@ router.post("/", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 // Get all proposals for a job
 router.get("/job/:jobID", async (req, res) => {
   const { jobID } = req.params; 

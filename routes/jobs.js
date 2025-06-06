@@ -38,8 +38,7 @@ router.post("/", isClient, async (req, res) => {
       targetSkills, 
       estTime, 
       jobLevel, 
-      connectsRequired, 
-      price 
+      connectsRequired
     } = req.body;
     
     // Get client ID from the request headers
@@ -56,25 +55,15 @@ router.post("/", isClient, async (req, res) => {
     request.input("cID", sql.Int, parseInt(cID));
     request.input("Title", sql.VarChar(255), title);
     request.input("description", sql.Text, description);
-    request.input("price", sql.Money, parseFloat(price));
     request.input("targetSkills", sql.VarChar(255), targetSkills);
     request.input("connectsRequired", sql.Int, parseInt(connectsRequired));
     request.input("estTime", sql.VarChar(50), estTime);
     request.input("jobLevel", sql.VarChar(50), jobLevel);
     
-    const query = `
-      INSERT INTO Jobs (cID, Title, description, price, targetSkills, connectsRequired, estTime, jobLevel)
-      VALUES (@cID, @Title, @description, @price, @targetSkills, @connectsRequired, @estTime, @jobLevel);
-      
-      SELECT SCOPE_IDENTITY() AS jobID;
-    `;
-    
-    const result = await request.query(query);
-    const jobID = result.recordset[0].jobID;
+    const result = await request.execute("sp_PostJob");
     
     res.status(201).json({ 
-      message: "Job created successfully", 
-      jobID: jobID 
+      message: "Job created successfully"
     });
   } catch (error) {
     console.error("Error creating job:", error);
@@ -333,5 +322,20 @@ router.get("/:jobID", async (req, res) => {
   }
 });
 
+// Get active jobs using the ActiveJobs view
+router.get("/active", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const request = pool.request();
+    
+    const query = `SELECT * FROM ActiveJobs`;
+    const result = await request.query(query);
+    
+    res.status(200).json(result.recordset);
+  } catch (error) {
+    console.error("Error fetching active jobs:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 module.exports = router;

@@ -87,7 +87,7 @@ GO
 CREATE VIEW ActiveJobs AS
 SELECT jobID, Title, description, postedOn 
 FROM Jobs 
-WHERE proposalsReceived < 5;
+WHERE proposalsReceived;
 GO
 SELECT * FROM ActiveJobs;
 
